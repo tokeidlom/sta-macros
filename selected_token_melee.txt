@@ -1,0 +1,39 @@
+let token = canvas.tokens.controlled[0];
+  if (!token) {
+    ui.notifications.error("No token selected!");
+    return;
+  }
+
+  let actor = token.actor;
+  if (!actor) {
+    ui.notifications.error("Selected token has no actor data.");
+    return;
+  }
+
+  let daringValue = actor.system.attributes.daring?.value ?? 0;
+  let securityValue = actor.system.disciplines.security?.value ?? 0;
+  let roller = new STARoll();
+
+  let dicePool = 2;
+  let usingFocus = false;
+  let usingDedicatedFocus = false;
+  let usingDetermination = false;
+  let selectedAttribute = "daring";
+  let selectedDiscipline = "security";
+  let complicationRange = 1;
+  let speaker = {
+    type: 'character',
+  };
+
+  roller.performAttributeTest(
+    dicePool,
+    usingFocus,
+    usingDedicatedFocus,
+    usingDetermination,
+    selectedAttribute,
+    daringValue,
+    selectedDiscipline,
+    securityValue,
+    complicationRange,
+    speaker
+  );

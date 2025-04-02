@@ -1,0 +1,3 @@
+const pl = game.playlists.getName("Effects");
+const sound = pl.sounds.getName("Please State");
+await pl.playSound(sound);

@@ -1,0 +1,162 @@
+if (typeof STARoll === "undefined") {
+    ui.notifications.error("STARoll is not available.");
+    return;
+}
+
+let selectedTokens = canvas.tokens.controlled;
+if (selectedTokens.length !== 2) {
+    ui.notifications.error("You must select one character and one starship.");
+    return;
+}
+
+let characterToken = selectedTokens.find(t => t.actor.type === "character");
+let starshipToken = selectedTokens.find(t => t.actor.type === "starship");
+
+if (!characterToken || !starshipToken) {
+    ui.notifications.error("You must select one character and one starship.");
+    return;
+}
+
+let character = characterToken.actor;
+let starship = starshipToken.actor;
+let attributes = ["control", "daring", "fitness", "insight", "presence", "reason"];
+let disciplines = ["command", "conn", "engineering", "security", "medicine", "science"];
+let systems = ["communications", "computers", "engines", "sensors", "structure", "weapons"];
+let departments = ["command", "conn", "engineering", "security", "medicine", "science"];
+let defaultAttribute = "control";
+let defaultDiscipline = "security";
+let defaultSystem = "weapons";
+let defaultDepartment = "security";
+
+const template = `
+    <div>
+        <h3>${character.name}'s Roll</h3>
+        <div class="row">
+            <div class="tracktitle">Attribute:</div>
+            <select id="attribute">
+                ${attributes.map(attr => `<option value="${attr}">${attr}</option>`).join("")}
+            </select>
+        </div>
+        <div class="row">
+            <div class="tracktitle">Discipline:</div>
+            <select id="discipline">
+                ${disciplines.map(disc => `<option value="${disc}">${disc}</option>`).join("")}
+            </select>
+        </div>
+        <div class="row">
+            <div class="tracktitle">Dice Pool:</div>
+            <input class="numeric-entry" type="number" name="charDicePool" value="2" min="2" max="5" id="char-dice-pool">
+        </div>
+        <div class="row">
+            <div class="tracktitle">Using Focus:</div>
+            <input type="checkbox" name="usingFocus" id="usingFocus">
+        </div>
+        <div class="row">
+            <div class="tracktitle">Using Dedicated Focus:</div>
+            <input type="checkbox" name="usingDedicatedFocus" id="usingDedicatedFocus">
+        </div>
+        <div class="row">
+            <div class="tracktitle">Using Determination:</div>
+            <input type="checkbox" name="usingDetermination" id="usingDetermination">
+        </div>
+        <div class="row">
+            <div class="tracktitle">Complication Range:</div>
+            <input class="numeric-entry" type="number" name="complicationRange" value="1" min="1" max="5" id="complication-range">
+        </div>
+        <h3>${starship.name}'s Roll</h3>
+        <div class="row">
+            <div class="tracktitle">System:</div>
+            <select id="system">
+                ${systems.map(system => `<option value="${system}">${system}</option>`).join("")}
+            </select>
+        </div>
+        <div class="row">
+            <div class="tracktitle">Department:</div>
+            <select id="department">
+                ${departments.map(dept => `<option value="${dept}">${dept}</option>`).join("")}
+            </select>
+        </div>
+    </div>
+`;
+
+const formData = await foundry.applications.api.DialogV2.wait({
+    window: {
+        title: `Roll for ${character.name} & ${starship.name}`
+    },
+    position: {
+        height: 'auto',
+        width: 450
+    },
+    content: template,
+    classes: ['dialogue'],
+    buttons: [{
+        action: 'roll',
+        default: true,
+        label: game.i18n.localize('sta.apps.rolldice'),
+        callback: (event, button, htmlElement) => {
+            return {
+                selectedAttribute: htmlElement.querySelector('#attribute')?.value || defaultAttribute,
+                selectedDiscipline: htmlElement.querySelector('#discipline')?.value || defaultDiscipline,
+                selectedSystem: htmlElement.querySelector('#system')?.value || defaultSystem,
+                selectedDepartment: htmlElement.querySelector('#department')?.value || defaultDepartment,
+                charDicePool: parseInt(htmlElement.querySelector('#char-dice-pool')?.value) || defaultDicePool,
+                ComplicationRange: parseInt(htmlElement.querySelector('#complication-range')?.value) || defaultDicePool,
+                usingFocus: htmlElement.querySelector('#usingFocus')?.checked || false,
+                usingDedicatedFocus: htmlElement.querySelector('#usingDedicatedFocus')?.checked || false,
+                usingDetermination: htmlElement.querySelector('#usingDetermination')?.checked || false
+            };
+        },
+    }],
+    close: () => null,
+});
+
+if (formData) {
+    let { 
+        selectedAttribute, 
+        selectedDiscipline, 
+        selectedSystem, 
+        selectedDepartment, 
+        charDicePool, 
+        ComplicationRange, 
+        usingFocus, 
+        usingDedicatedFocus, 
+        usingDetermination 
+    } = formData;
+
+    let AttributeValue = character.system.attributes[selectedAttribute.toLowerCase()]?.value ?? 0;
+    let DisciplineValue = character.system.disciplines[selectedDiscipline.toLowerCase()]?.value ?? 0;
+    let SystemValue = starship.system.systems[selectedSystem.toLowerCase()]?.value ?? 0;
+    let DepartmentValue = starship.system.departments[selectedDepartment.toLowerCase()]?.value ?? 0;
+
+    if (usingDetermination) { 
+	  charDicePool = charDicePool - 1 
+	}
+
+    let roller = new STARoll();
+
+    roller.performAttributeTest(
+        charDicePool,
+        usingFocus,
+        usingDedicatedFocus,
+        usingDetermination,
+        selectedAttribute,
+        AttributeValue,
+        selectedDiscipline,
+        DisciplineValue,
+        ComplicationRange,
+        character
+    );
+
+    roller.performAttributeTest(
+        1,
+        true,
+        false,
+        false,
+        selectedSystem,
+        SystemValue,
+        selectedDepartment,
+        DepartmentValue,
+        ComplicationRange,
+        starship
+    );
+}
