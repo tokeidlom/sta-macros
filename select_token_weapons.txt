@@ -1,0 +1,32 @@
+//Grabs the character weapons from a selected token and lets you roll the selected one to chat (dialogV1)
+
+if (!token?.actor) {
+    return ui.notifications.warn("No valid token selected!");
+}
+
+const actor = token.actor;
+const weapons = actor.items.filter(item => item.type === "characterweapon2e");
+if (!weapons.length) {
+    return ui.notifications.warn("No weapons found for the selected token!");
+}
+
+let roller = new STARoll();
+let weaponMap = Object.fromEntries(weapons.map(w => [w.id, w]));
+
+new Dialog({
+    title: "Select Weapon",
+    content: `<p>Select a weapon:</p>
+              <select id='weapon-select'>
+                  ${weapons.map(w => `<option value='${w.id}'>${w.name}</option>`).join("")}
+              </select>`,
+    buttons: {
+        select: {
+            label: "Select",
+            callback: (html) => {
+                let selectedWeapon = weaponMap[html.find('#weapon-select').val()];
+                if (selectedWeapon) roller.performWeaponRoll2e(selectedWeapon, actor);
+            }
+        },
+        cancel: { label: "Cancel" }
+    }
+}).render(true);

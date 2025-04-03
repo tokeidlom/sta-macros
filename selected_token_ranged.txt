@@ -1,3 +1,5 @@
+//Makes a ranged roll based on the selected token without further dialog, default options can be changed in the code
+
 let token = canvas.tokens.controlled[0];
   if (!token) {
     ui.notifications.error("No token selected!");

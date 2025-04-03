@@ -1,3 +1,5 @@
+//Select one character and one starship token, make a task roll with ship assisting based on the token values (dialogV2)
+
 if (typeof STARoll === "undefined") {
     ui.notifications.error("STARoll is not available.");
     return;

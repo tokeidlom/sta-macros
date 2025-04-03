@@ -1,1 +1,3 @@
+//Changes the canvas to the named scene in this case "Space Walk - Canvas"
+
 await game.scenes.getName('Space Walk - Canvas')?.update({active: true})
