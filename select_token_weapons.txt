@@ -1,4 +1,4 @@
-//Grabs the character weapons from a selected token and lets you roll the selected one to chat (dialogV1)
+//Grabs the character weapons from a selected token and lets you roll the selected one to chat with a melee or ranged attack task (dialogV1)
 
 if (!token?.actor) {
     return ui.notifications.warn("No valid token selected!");
@@ -13,6 +13,31 @@ if (!weapons.length) {
 let roller = new STARoll();
 let weaponMap = Object.fromEntries(weapons.map(w => [w.id, w]));
 
+const performRoll = (weapon, attribute, attributeValue) => {
+    let securityValue = actor.system.disciplines.security?.value ?? 0;
+    let dicePool = 2;
+    let usingFocus = false;
+    let usingDedicatedFocus = false;
+    let usingDetermination = false;
+    let complicationRange = 1;
+    let speaker = { type: 'character' };
+    
+    roller.performAttributeTest(
+        dicePool,
+        usingFocus,
+        usingDedicatedFocus,
+        usingDetermination,
+        attribute,
+        attributeValue,
+        "security",
+        securityValue,
+        complicationRange,
+        speaker
+    );
+    
+    roller.performWeaponRoll2e(weapon, actor);
+};
+
 new Dialog({
     title: "Select Weapon",
     content: `<p>Select a weapon:</p>
@@ -24,7 +49,13 @@ new Dialog({
             label: "Select",
             callback: (html) => {
                 let selectedWeapon = weaponMap[html.find('#weapon-select').val()];
-                if (selectedWeapon) roller.performWeaponRoll2e(selectedWeapon, actor);
+                if (selectedWeapon) {
+                    let isRanged = selectedWeapon.system.range === "ranged";
+                    let attribute = isRanged ? "control" : "daring";
+                    let attributeValue = actor.system.attributes[attribute]?.value ?? 0;
+                    
+                    performRoll(selectedWeapon, attribute, attributeValue);
+                }
             }
         },
         cancel: { label: "Cancel" }
