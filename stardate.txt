@@ -1,0 +1,90 @@
+const template = `
+<div>
+  <div class="form-group">
+    <label for="dateInput">Select Earth Date:</label>
+    <input type="date" id="dateInput" name="dateInput" style="width: 100%;" />
+  </div>
+  <div class="form-group">
+    <label for="eraSelect">Select Era:</label>
+    <select id="eraSelect" name="eraSelect" style="width: 100%;">
+      <option value="tng">TNG (Next Generation)</option>
+      <option value="tos">TOS (Original Series)</option>
+      <option value="kelvin">Kelvin Timeline</option>
+    </select>
+  </div>
+</div>
+`;
+
+const formData = await foundry.applications.api.DialogV2.wait({
+  window: { title: "Stardate Calculator" },
+  position: { height: 'auto', width: 450 },
+  content: template,
+  classes: ['dialogue'],
+  buttons: [{
+    action: 'roll',
+    default: true,
+    label: "Calculate Stardate",
+    callback: (event, button, dialog) => {
+      const dateInput = dialog.element.querySelector("#dateInput")?.value;
+      const eraSelect = dialog.element.querySelector("#eraSelect")?.value;
+
+      if (!dateInput) {
+        ui.notifications.warn("Please select a date.");
+        return false;
+      }
+
+      const date = new Date(dateInput);
+      const stardate = calculateStardate(date, eraSelect);
+
+      if (stardate === null) {
+        ui.notifications.error("Could not calculate stardate.");
+        return false;
+      }
+
+      const dateStr = date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      ChatMessage.create({
+        user: game.user.id,
+        speaker: ChatMessage.getSpeaker(),
+        content: `
+          <strong>Earth Date:</strong> ${dateStr}<br>
+          <strong>Stardate (${eraSelect.toUpperCase()}):</strong> ${stardate.toFixed(2)}
+        `
+      });
+
+      return true;
+    }
+  }],
+  close: () => null
+});
+
+if (!formData) return;
+
+function calculateStardate(date, era) {
+  const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+
+  switch (era) {
+    case "tng": {
+      const baseDate = new Date("2323-01-01");
+      const diffYears = (date - baseDate) / msPerYear;
+      return 41000 + diffYears * 1000;
+    }
+    case "tos": {
+      const baseTOS = new Date("2265-01-01");
+      const diffYears = (date - baseTOS) / msPerYear;
+      return 1000 + diffYears * 1000;
+    }
+    case "kelvin": {
+      const year = date.getFullYear();
+      const start = new Date(`${year}-01-01`);
+      const dayOfYear = Math.floor((date - start) / (1000 * 60 * 60 * 24)) + 1;
+      return year + dayOfYear / 1000;
+    }
+    default:
+      return null;
+  }
+}
