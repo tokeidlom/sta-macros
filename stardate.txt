@@ -1,58 +1,71 @@
 const template = `
 <div>
   <div class="form-group">
-    <label for="dateInput">Select Earth Date:</label>
-    <input type="date" id="dateInput" name="dateInput" style="width: 100%;" />
+    <label for="lyInput">Enter Distance (Light Years):</label>
+    <input type="number" id="lyInput" name="lyInput" min="0" step="0.01" style="width: 100%;" />
+  </div>
+  <div class="form-group">
+    <label for="warpSelect">Select Warp Factor:</label>
+    <select id="warpSelect" name="warpSelect" style="width: 100%;">
+      ${Array.from({ length: 90 }, (_, i) => {
+        const warp = (i + 10) / 10;
+        return `<option value="${warp.toFixed(1)}">Warp ${warp.toFixed(1)}</option>`;
+      }).join('')}
+    </select>
   </div>
   <div class="form-group">
     <label for="eraSelect">Select Era:</label>
     <select id="eraSelect" name="eraSelect" style="width: 100%;">
       <option value="tng">TNG (Next Generation)</option>
       <option value="tos">TOS (Original Series)</option>
-      <option value="kelvin">Kelvin Timeline</option>
     </select>
   </div>
 </div>
 `;
 
 const formData = await foundry.applications.api.DialogV2.wait({
-  window: { title: "Stardate Calculator" },
+  window: { title: "Warp Travel Time Calculator" },
   position: { height: 'auto', width: 450 },
   content: template,
   classes: ['dialogue'],
   buttons: [{
-    action: 'roll',
+    action: 'calculate',
     default: true,
-    label: "Calculate Stardate",
+    label: "Calculate Travel Time",
     callback: (event, button, dialog) => {
-      const dateInput = dialog.element.querySelector("#dateInput")?.value;
-      const eraSelect = dialog.element.querySelector("#eraSelect")?.value;
+      const lyInput = parseFloat(dialog.element.querySelector("#lyInput")?.value);
+      const warp = parseFloat(dialog.element.querySelector("#warpSelect")?.value);
+      const era = dialog.element.querySelector("#eraSelect")?.value;
 
-      if (!dateInput) {
-        ui.notifications.warn("Please select a date.");
+      if (isNaN(lyInput) || lyInput <= 0) {
+        ui.notifications.warn("Please enter a valid number of light years.");
         return false;
       }
 
-      const date = new Date(dateInput);
-      const stardate = calculateStardate(date, eraSelect);
-
-      if (stardate === null) {
-        ui.notifications.error("Could not calculate stardate.");
+      if (isNaN(warp) || warp < 1) {
+        ui.notifications.warn("Please select a valid warp factor.");
         return false;
       }
 
-      const dateStr = date.toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      const travelYears = calculateTravelTime(lyInput, warp, era);
+
+      if (travelYears === null) {
+        ui.notifications.error("Could not calculate travel time.");
+        return false;
+      }
+
+      const timeStr = formatTime(travelYears);
 
       ChatMessage.create({
         user: game.user.id,
         speaker: ChatMessage.getSpeaker(),
         content: `
-          <strong>Earth Date:</strong> ${dateStr}<br>
-          <strong>Stardate (${eraSelect.toUpperCase()}):</strong> ${stardate.toFixed(2)}
+          <strong>Distance:</strong> ${lyInput} light years<br>
+          <strong>Warp Factor:</strong> ${warp}<br>
+          <strong>Era:</strong> ${era.toUpperCase()}<br>
+          <strong>Estimated Travel Time:</strong><br>
+          ${travelYears.toFixed(4)} years<br>
+          <em>${timeStr}</em>
         `
       });
 
@@ -64,27 +77,37 @@ const formData = await foundry.applications.api.DialogV2.wait({
 
 if (!formData) return;
 
-function calculateStardate(date, era) {
-  const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+function calculateTravelTime(lightYears, warpFactor, era) {
+  if (warpFactor < 1 || warpFactor >= 10) return null;
+
+  let speed;
 
   switch (era) {
-    case "tng": {
-      const baseDate = new Date("2323-01-01");
-      const diffYears = (date - baseDate) / msPerYear;
-      return 41000 + diffYears * 1000;
-    }
-    case "tos": {
-      const baseTOS = new Date("2265-01-01");
-      const diffYears = (date - baseTOS) / msPerYear;
-      return 1000 + diffYears * 1000;
-    }
-    case "kelvin": {
-      const year = date.getFullYear();
-      const start = new Date(`${year}-01-01`);
-      const dayOfYear = Math.floor((date - start) / (1000 * 60 * 60 * 24)) + 1;
-      return year + dayOfYear / 1000;
-    }
+    case "tos":
+      speed = Math.pow(warpFactor, 3);
+      break;
+
+    case "tng":
+      speed = Math.pow(warpFactor, 10 / 3);
+      break;
+
     default:
       return null;
   }
+  return lightYears / speed;
+}
+
+function formatTime(years) {
+  const totalDays = Math.round(years * 365.25);
+  const y = Math.floor(totalDays / 365.25);
+  const remainingDays = totalDays - Math.round(y * 365.25);
+  const m = Math.floor(remainingDays / 30.44);
+  const d = Math.round(remainingDays - m * 30.44);
+
+  const parts = [];
+  if (y > 0) parts.push(`${y} year${y !== 1 ? 's' : ''}`);
+  if (m > 0) parts.push(`${m} month${m !== 1 ? 's' : ''}`);
+  if (d > 0 || parts.length === 0) parts.push(`${d} day${d !== 1 ? 's' : ''}`);
+
+  return parts.join(', ');
 }
